@@ -1,0 +1,1 @@
+export type TabType = "stepOne" | "stepTwo" | "stepThree" | "stepFourIdentityOtp" | "stepFour" | "stepFive";
