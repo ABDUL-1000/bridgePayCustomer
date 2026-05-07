@@ -1,89 +1,85 @@
 import axiosInstance from "@/lib/axios";
 
-// ─── Resolve recipient ────────────────────────────────────────────────────────
+    const idempotencyKey = () =>
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export interface ResolveTransferResponse {
-  status:  string;
-  message: string;
-  data: {
-    name:          string;
-    identifier:    string;
-    bank?:         string;
-    accountNumber?: string;
-  };
+// ─── Get banks list ───────────────────────────────────────────────────────────
+
+export interface Bank {
+  name:     string;
+  bankCode: string;
+  code:     string;
 }
 
-export const resolveTransfer = async (identifier: string): Promise<ResolveTransferResponse> => {
-  const response = await axiosInstance.post("/transfers/resolve", { identifier });
-  return response.data;
+export const getBanks = async (): Promise<Bank[]> => {
+  const response = await axiosInstance.get("/transfers/banks");
+  return response.data?.data ?? [];
+};
+
+// ─── Resolve recipient ────────────────────────────────────────────────────────
+
+export interface ResolvePayload {
+  identifier: string;
+  bank_code?: string; // required for other-bank transfers
+}
+
+export interface ResolvedRecipient {
+  user_id:    string | null;
+  session_id: string;
+  username:   string | null;
+  bank_name:  string;
+  // b2b fields (BridgePay-to-BridgePay)
+  name?:      string;
+}
+
+export const resolveTransfer = async (
+  payload: ResolvePayload
+): Promise<ResolvedRecipient> => {
+  const response = await axiosInstance.post("/transfers/resolve", payload);
+  return response.data?.data;
 };
 
 // ─── Initiate transfer ────────────────────────────────────────────────────────
 
-export interface InitiateTransferPayload {
+export interface InitiatePayload {
   identifier: string;
+  bank_code?: string;
+  session_id: string;
   amount:     number;
   remark:     string;
 }
 
-export interface InitiateTransferResponse {
-  status:  string;
-  message: string;
-  data: {
-    transaction_id: string;
-    amount:         number;
-    fee?:           number;
-    vat?:           number;
-    total?:         number;
-    recipient:      string;
-    bank?:          string;
-    accountNumber?: string;
-  };
+export interface TransferSummary {
+  transaction_id: string;
+  amount:         number;
+  fee?:           number;
+  vat?:           number;
+  total?:         number;
+  recipient:      string;
+  bank?:          string;
 }
 
 export const initiateTransfer = async (
-  payload: InitiateTransferPayload
-): Promise<InitiateTransferResponse> => {
-  const idempotencyKey = crypto.randomUUID();
+  payload: InitiatePayload
+): Promise<TransferSummary> => {
   const response = await axiosInstance.post("/transfers/initiate", payload, {
-    headers: {
-      "X-Idempotency-Key": idempotencyKey,
-    },
+    headers: { "X-Idempotency-Key": idempotencyKey() },
   });
-  return response.data;
+  return response.data?.data;
 };
 
-// ─── Confirm transfer (PIN) ───────────────────────────────────────────────────
-
-export interface ConfirmTransferResponse {
-  status:  string;
-  message: string;
-  data?:   Record<string, unknown>;
-}
+// ─── Confirm transfer ─────────────────────────────────────────────────────────
 
 export const confirmTransfer = async (
   transactionId: string,
   pin: string
-): Promise<ConfirmTransferResponse> => {
+): Promise<{ message: string }> => {
   const response = await axiosInstance.post(
     "/transfers/confirm",
     { pin },
-    {
-      headers: {
-        transaction_id: transactionId,
-      },
-    }
+    { headers: { transaction_id: transactionId } }
   );
-  return response.data;
-};
-
-// ─── Legacy account enquiry (kept for other usages) ──────────────────────────
-
-export const performAccountEnquiry = async (data: {
-  accountNumber: string;
-  bankCode:      string;
-  bank:          string;
-}) => {
-  const response = await axiosInstance.post("/transfer/account-enquiry", data);
   return response.data;
 };
