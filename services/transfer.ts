@@ -46,7 +46,7 @@ export const resolveTransfer = async (
 export interface InitiatePayload {
   identifier: string;
   bank_code?: string;
-  session_id: string;
+  session_id?: string; // required for other-bank, omitted for BridgePay-to-BridgePay
   amount:     number;
   remark:     string;
 }

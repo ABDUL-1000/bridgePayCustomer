@@ -15,6 +15,7 @@ import { Heading5, ParagraphLg } from "@/components/shared/Text";
 import UserMenuButton from "../navbar/modules/UserMenuButton";
 import CustomImage from "@/components/ui/custom-image";
 import { IUser } from "@/shared-types";
+import { useNotificationStore } from "@/store/useNotificationStore";
 
 export interface HeaderLabelProps {
   heading?: string;
@@ -57,6 +58,7 @@ const InAppHeader: React.FC<HeaderProps> = ({
   const isCardsPage = pathname === cardsPage;
   const isSettingsPage = pathname === settingsPage;
   const showNotification = false;
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   // Use name passed from parent (sourced from dashboard API, fetched once)
   const displayName = firstName || user?.firstname || "";
@@ -111,11 +113,18 @@ const InAppHeader: React.FC<HeaderProps> = ({
 
         <div className="flex flex-row items-center justify-end gap-4">
           <BlindCircleButton onClick={() => setShowNotification(true)}>
-            <CustomImage
-              src={navBarNotificationImg}
-              alt="Notification"
-              className="w-[13px] md:w-[15px]"
-            />
+            <div className="relative">
+              <CustomImage
+                src={navBarNotificationImg}
+                alt="Notification"
+                className="w-[13px] md:w-[15px]"
+              />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-error text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </div>
           </BlindCircleButton>
 
           <Link href="/settings">

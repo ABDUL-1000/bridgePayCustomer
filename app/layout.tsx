@@ -6,6 +6,7 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -71,12 +72,14 @@ export default function RootLayout({
 }>) {
   return (
     <Providers>
-      <html lang="en" className={cn("font-sans", geist.variable)}>
-        <body className="px-4 sm:px-0">
-          <Toaster position="top-right" />
-          {children}
-        </body>
-      </html>
+      <NotificationProvider>
+        <html lang="en" className={cn("font-sans", geist.variable)}>
+          <body className="px-4 sm:px-0">
+            <Toaster position="top-right" />
+            {children}
+          </body>
+        </html>
+      </NotificationProvider>
     </Providers>
   );
 }

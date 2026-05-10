@@ -333,9 +333,13 @@ const StepTwo = ({
     mutationFn: () =>
       initiateTransfer({
         identifier: recipient.typedIdentifier,
-        session_id: recipient.session_id,
         amount,
         remark,
+        // session_id is required for other-bank transfers only
+        ...(mode === "other-bank" && recipient.session_id
+          ? { session_id: recipient.session_id }
+          : {}),
+        // bank_code is required for other-bank transfers only
         ...(mode === "other-bank" && recipient.selectedBank
           ? { bank_code: recipient.selectedBank.bankCode }
           : {}),
