@@ -52,9 +52,10 @@ export interface InitiatePayload {
 }
 
 export interface TransferSummary {
-  transaction_id: string;
+  _id:            string; // this is the transaction ID used for /confirm
+  transaction_id?: string; // alias — some responses use this
   amount:         number;
-  fee?:           number;
+  fee?:           number | Record<string, number>;
   vat?:           number;
   total?:         number;
   recipient:      string;
@@ -77,9 +78,8 @@ export const confirmTransfer = async (
   pin: string
 ): Promise<{ message: string }> => {
   const response = await axiosInstance.post(
-    "/transfers/confirm",
-    { pin },
-    { headers: { transaction_id: transactionId } }
+    `/transfers/confirm?transaction_id=${transactionId}`,
+    { pin }
   );
   return response.data;
 };

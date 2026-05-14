@@ -32,30 +32,25 @@ export interface DashboardResponse {
 }
 
 // ─── Recent Transactions types ────────────────────────────────────────────────
+// The /users/recent-transactions endpoint returns data as a direct array
+// using the same shape as ITransaction from lib/data/transactions.ts
 
-export interface RecentTransaction {
-    id: string;
-    amount: number;
-    currency: string;
-    status: "completed" | "processing" | "canceled" | "refunded";
-    paymentType: string;
-    websiteName: string;
-    createdAt: string;
-    time?: string;
-}
+import type { ITransaction } from "@/lib/data/transactions";
+
+export type RecentTransaction = ITransaction;
 
 export interface RecentTransactionsMeta {
-    totalDocs: number;
-    limit: number;
-    totalPages: number;
-    page: number;
-    hasPrevPage: boolean;
-    hasNextPage: boolean;
-    prevPage: number | null;
-    nextPage: number | null;
+  totalDocs:    number;
+  limit:        number;
+  totalPages:   number;
+  page:         number;
+  hasPrevPage:  boolean;
+  hasNextPage:  boolean;
+  prevPage:     number | null;
+  nextPage:     number | null;
 }
 
 export interface RecentTransactionsData {
-    transactions: RecentTransaction[];
-    meta: RecentTransactionsMeta;
+  transactions: RecentTransaction[];
+  meta?:        RecentTransactionsMeta;
 }

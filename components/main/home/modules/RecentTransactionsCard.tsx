@@ -17,20 +17,32 @@ import {
   ParagraphXs,
 } from "@/components/shared/Text";
 import CustomImage from "@/components/ui/custom-image";
-import { padAmount } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useRecentTransactions } from "../hooks/use-dashboard";
-import type { RecentTransaction } from "../types";
+import { type ITransaction, getTransactionDisplay } from "@/lib/data/transactions";
 
-// ─── Main component ───────────────────────────────────────────────────────────
+const statusImages: Record<string, string> = {
+  completed:  transactionDetailsStatusCompletedImg,
+  processing: transactionStatusProcessingImg,
+  pending:    transactionStatusProcessingImg,
+  failed:     transactionStatusCanceledImg,
+  reversed:   transactionStatusRefundedImg,
+};
+
+const statusLabels: Record<string, string> = {
+  completed:  "Completed",
+  processing: "Processing",
+  pending:    "Pending",
+  failed:     "Failed",
+  reversed:   "Reversed",
+};
 
 const RecentTransactionsCard: React.FC = () => {
   const router = useRouter();
   const isMd = useMediaQuery("(max-width: 768px)");
-  const { data, isLoading } = useRecentTransactions();
+  const { transactions: allTx, isLoading } = useRecentTransactions();
 
-  const all = data?.transactions ?? [];
-  const transactions = isMd ? all.slice(0, 2) : all.slice(0, 5);
+  const transactions = isMd ? allTx.slice(0, 3) : allTx.slice(0, 5);
 
   return (
     <div className="w-full flex flex-col items-start justify-start md:gap-4 duration-200">
@@ -47,7 +59,7 @@ const RecentTransactionsCard: React.FC = () => {
         </button>
       </div>
 
-      {/* Loading skeleton */}
+      {/* Loading */}
       {isLoading && (
         <div className="w-full space-y-3 mt-2">
           {[...Array(3)].map((_, i) => (
@@ -56,14 +68,10 @@ const RecentTransactionsCard: React.FC = () => {
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty */}
       {!isLoading && transactions.length === 0 && (
         <div className="w-full flex items-center justify-center py-10">
-          <Empty
-            description={
-              <span className="text-sub-500 text-sm">No recent transactions</span>
-            }
-          />
+          <Empty description={<span className="text-sub-500 text-sm">No recent transactions</span>} />
         </div>
       )}
 
@@ -73,20 +81,18 @@ const RecentTransactionsCard: React.FC = () => {
           <table className="w-full border-separate border-spacing-y-3">
             <thead>
               <tr className="bg-custom-weak-100 rounded-lg">
-                {["Channel", "Amount", "Transaction type", "Status", "Date and time"].map(
-                  (h) => (
-                    <th key={h} className="py-3 px-6 text-left font-normal">
-                      <ParagraphMd className="text-sub-500 md:text-xs">{h}</ParagraphMd>
-                    </th>
-                  )
-                )}
+                {["Channel", "Amount", "Type", "Status", "Date"].map((h) => (
+                  <th key={h} className="py-3 px-6 text-left font-normal">
+                    <ParagraphMd className="text-sub-500 md:text-xs">{h}</ParagraphMd>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {transactions.map((item, index) => (
-                <Fragment key={item.id ?? index}>
+              {transactions.map((tx, index) => (
+                <Fragment key={tx._id ?? index}>
                   <tr>
-                    <TransactionRowTable {...item} />
+                    <DesktopRow tx={tx} />
                   </tr>
                   {index !== transactions.length - 1 && (
                     <tr>
@@ -105,9 +111,9 @@ const RecentTransactionsCard: React.FC = () => {
       {/* Mobile list */}
       {!isLoading && transactions.length > 0 && (
         <div className="md:hidden w-full">
-          {transactions.map((item, index) => (
-            <div key={item.id ?? index}>
-              <TransactionRowMobile {...item} />
+          {transactions.map((tx, index) => (
+            <div key={tx._id ?? index}>
+              <MobileRow tx={tx} />
               {index !== transactions.length - 1 && (
                 <div className="w-full h-px border border-soft-200/30 my-1" />
               )}
@@ -121,134 +127,87 @@ const RecentTransactionsCard: React.FC = () => {
 
 // ─── Desktop row ──────────────────────────────────────────────────────────────
 
-const TransactionRowTable: React.FC<RecentTransaction> = ({
-  amount,
-  status,
-  createdAt,
-  websiteName,
-  paymentType,
-  currency,
-  time,
-}) => {
-  const amountArr = padAmount(amount);
-
-  const renderPaymentType = () => {
-    switch (paymentType) {
-      case "dollar-card":      return "Dollar Card";
-      case "credit":           return "Credit";
-      case "debit":            return "Debit";
-      case "payment-request":  return "Payment request";
-      case "usd-card-funding": return "USD Card Funding";
-      default:                 return paymentType;
-    }
-  };
-
-  const currencySign = currency === "ngn" ? "₦" : "$";
-  const prefix       = status === "completed" ? "+" : "-";
-  const amountColor  =
-    status === "completed" ? "text-[#38C793] md:text-xs"
-    : status === "canceled" ? "text-[#DF1C41] md:text-xs"
-    : "text-sub-500 md:text-xs";
+const DesktopRow = ({ tx }: { tx: ITransaction }) => {
+  const d = getTransactionDisplay(tx);
+  const sign = d.isCredit ? "+" : "-";
+  const amountColor = d.status === "completed"
+    ? (d.isCredit ? "text-[#38C793]" : "text-[#DF1C41]")
+    : "text-sub-500";
 
   return (
     <>
       <td className="pl-3 px-6">
-        <ParagraphMd className="text-sub-500 md:text-xs">{websiteName}</ParagraphMd>
+        <ParagraphMd className="text-sub-500 md:text-xs">{d.name}</ParagraphMd>
       </td>
       <td className="px-6">
-        <ParagraphMd className={amountColor}>
-          {`${prefix}${currencySign}${amountArr[0]}.${amountArr[1]}`}
+        <ParagraphMd className={`md:text-xs ${amountColor}`}>
+          {sign}₦{d.amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
         </ParagraphMd>
       </td>
       <td className="px-6">
-        <ParagraphMd className="text-sub-500 md:text-xs">{renderPaymentType()}</ParagraphMd>
+        <ParagraphMd className="text-sub-500 md:text-xs capitalize">{tx.type}</ParagraphMd>
       </td>
       <td className="px-6">
-        <TransactionStatusBadge status={status} />
+        <div className="flex items-center gap-1 border border-soft-200 w-fit py-1 px-2 rounded-lg">
+          <CustomImage src={statusImages[d.status] ?? statusImages.pending} alt={d.status} width={13} />
+          <ParagraphSm className="text-sub-500 font-medium">{statusLabels[d.status] ?? d.status}</ParagraphSm>
+        </div>
       </td>
       <td className="px-6">
         <ParagraphMd className="text-black-900 md:text-xs font-medium">
-          {createdAt}
-          {time && <span className="ml-1">{time}</span>}
+          {d.date} <span className="ml-1">{d.time}</span>
         </ParagraphMd>
       </td>
     </>
   );
 };
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
-
-const TransactionStatusBadge = ({
-  status,
-}: {
-  status: RecentTransaction["status"];
-}) => {
-  const map: Record<
-    RecentTransaction["status"],
-    { img: string; label: string }
-  > = {
-    completed:  { img: transactionDetailsStatusCompletedImg, label: "Completed" },
-    processing: { img: transactionStatusProcessingImg,       label: "Processing" },
-    canceled:   { img: transactionStatusCanceledImg,         label: "Cancelled" },
-    refunded:   { img: transactionStatusRefundedImg,         label: "Refunded" },
-  };
-
-  const { img, label } = map[status] ?? map.refunded;
-
-  return (
-    <div className="flex items-center justify-center gap-1 border border-soft-200 w-fit py-1 px-2 rounded-lg">
-      <CustomImage src={img} alt={label} width={13} />
-      <ParagraphSm className="text-sub-500 font-medium">{label}</ParagraphSm>
-    </div>
-  );
-};
-
 // ─── Mobile row ───────────────────────────────────────────────────────────────
 
-const TransactionRowMobile: React.FC<RecentTransaction> = ({
-  amount,
-  status,
-  createdAt,
-  websiteName,
-  paymentType,
-  currency,
-  time,
-}) => {
-  const amountArr  = padAmount(amount);
-  const isCredit   = paymentType === "credit";
-  const currencySign = currency === "ngn" ? "₦" : "$";
+const MobileRow = ({ tx }: { tx: ITransaction }) => {
+  const d = getTransactionDisplay(tx);
+  const sign = d.isCredit ? "+" : "-";
+  const isPending = d.status === "pending" || d.status === "processing";
+
+  // Credit = downward green arrow, Debit = upward red arrow, Pending = lemon/yellow
+  const iconBg = isPending
+    ? "bg-yellow-light"
+    : d.isCredit
+    ? "bg-green-lighter"
+    : "bg-red-lighter";
+
+  const iconColor = isPending
+    ? "text-yellow-away"
+    : d.isCredit
+    ? "text-[#2D9F75]"
+    : "text-[#AF1D38]";
+
+  const amountColor = isPending
+    ? "text-yellow-away"
+    : d.isCredit
+    ? "text-[#2D9F75]"
+    : "text-[#AF1D38]";
 
   return (
     <div className="flex items-start justify-between w-full py-2 mt-3">
       <div className="flex items-center gap-3">
-        <div
-          className={`flex justify-center items-center w-[32px] h-[32px] rounded-full ${
-            isCredit ? "bg-green-lighter" : "bg-red-lighter"
-          }`}
-        >
-          {isCredit ? (
-            <ArrowUpIcon className="w-4 h-4 text-[#2D9F75]" />
-          ) : (
-            <ArrowDownIcon className="w-4 h-4 text-[#AF1D38]" />
-          )}
+        <div className={`flex justify-center items-center w-[32px] h-[32px] rounded-full ${iconBg}`}>
+          {d.isCredit
+            ? <ArrowDownIcon className={`w-4 h-4 ${iconColor}`} />
+            : <ArrowUpIcon className={`w-4 h-4 ${iconColor}`} />}
         </div>
         <div className="flex flex-col gap-0.5">
-          <ParagraphLg className="text-black-900">{websiteName}</ParagraphLg>
-          <ParagraphXs className="text-sub-500">{paymentType}</ParagraphXs>
+          <ParagraphLg className="text-black-900">{d.name}</ParagraphLg>
+          <ParagraphXs className="text-sub-500 capitalize">{tx.type}</ParagraphXs>
         </div>
       </div>
 
       <div className="flex flex-col items-end gap-0.5">
-        <ParagraphLg
-          className={`font-medium tracking-[-0.176px] ${
-            isCredit ? "text-[#2D9F75]" : "text-[#AF1D38]"
-          }`}
-        >
-          {`${isCredit ? "+" : "-"}${currencySign}${amountArr[0]}.${amountArr[1]}`}
+        <ParagraphLg className={`font-medium tracking-[-0.176px] ${amountColor}`}>
+          {sign}₦{d.amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
         </ParagraphLg>
         <ParagraphXs className="text-sub-500 tracking-[-0.06px]">
-          {createdAt}
-          {time && <span className="ml-1">{time}</span>}
+          {d.date} <span className="ml-1">{d.time}</span>
         </ParagraphXs>
       </div>
     </div>

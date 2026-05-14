@@ -403,7 +403,7 @@ const StepThree = ({
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const { mutate: confirm, isPending } = useMutation({
-    mutationFn: () => confirmTransfer(summary.transaction_id, pin.join("")),
+    mutationFn: () => confirmTransfer(summary._id || summary.transaction_id || "", pin.join("")),
     onSuccess: (data) => {
       toast.success((data as any)?.message || "Transfer successful!");
       onNext();
